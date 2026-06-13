@@ -49,7 +49,7 @@ Build test payloads with `jq -nc --arg ...` rather than hand-writing JSON (hand-
 ## Platform gotchas (these caused real bugs — keep them)
 
 - **bash POST must use stdin**: `printf '%s' "$BODY" | curl ... --data-binary @-`. Passing the body as a command-line arg (`-d "$BODY"`) corrupts multibyte UTF-8 under MSYS/Git Bash → Discord rejects with `50109 invalid JSON`. All JSON is built with `jq` (escaping + the reset-time math via `fromdateiso8601`/`now`).
-- **PowerShell 5.1 must stay ASCII-safe**: build emoji / progress-bar glyphs from code points (`[System.Char]::ConvertFromUtf32`, `[char]0x25B0`), never paste literal non-ASCII (5.1 reads BOM-less files in the legacy codepage and corrupts them). Set `[Console]::InputEncoding` to UTF-8 before reading stdin, and POST the body as UTF-8 bytes.
+- **PowerShell 5.1 must stay ASCII-safe**: build emoji / progress-bar glyphs from code points (`[System.Char]::ConvertFromUtf32`, `[char]0x25B0`), never paste literal non-ASCII (5.1 reads BOM-less files in the legacy codepage and corrupts them). Read stdin via an explicit UTF-8 `StreamReader` on `[Console]::OpenStandardInput()` — NOT `$input` / `[Console]::InputEncoding`, which decode in the legacy OEM codepage on 5.1 and garble em-dashes/accents/emoji (an em-dash `—` becomes `ΓÇö`) — and POST the body as UTF-8 bytes.
 - **`.gitattributes` forces `*.sh eol=lf`** — CRLF breaks the shebang/scripts on Unix. Don't remove it.
 - **Discord embed rules**: activity feed sets `allowed_mentions:{parse:[]}` so it never pings; the ping feed puts `<@id>` in `content` (mentions inside embeds don't trigger notifications). `embeds`/`fields` must serialize as JSON arrays.
 
