@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Hook scripts that send Claude Code lifecycle events to Discord via webhooks (no bot, no server). There is **no build system** — the deliverables are standalone scripts invoked by Claude Code hooks. Two feeds, two platform implementations that must stay at **behavioral parity**:
+Hook scripts that send Claude Code lifecycle events to Discord via webhooks (no bot, no server). There is **no build system** — the deliverables are standalone scripts invoked by Claude Code hooks. Three feeds, two platform implementations that must stay at **behavioral parity**:
 
 - **Ping feed** (`notify-discord.{ps1,sh}`) — fires on the `Notification` hook **only**, gated (settings `matcher` + in-script allowlist) to `notification_type` values that mean Claude needs you (`permission_prompt`, `worker_permission_prompt`, `idle_prompt`, `elicitation_dialog`, `elicitation_url_dialog`); @-mentions the user; embed shows official usage % + last prompt's token cost. The `Stop` hook is intentionally NOT wired — turn-end isn't a needs-input signal and caused double/false pings. (AskUserQuestion, tool permissions, and plan-mode all surface as `permission_prompt`. `idle_prompt` is the ~60s "your turn / Claude finished or stuck and waiting" signal; remove it from the matcher + allowlist for hard-blocks-only.)
 - **Activity feed** (`notify-discord-activity.{ps1,sh}`) — fires on `UserPromptSubmit`, `SubagentStart`, `SubagentStop`, `PostToolUse`(matcher `Workflow`), `MessageDisplay`; never pings.
+- **Usage tracker** (`notify-discord-usage.{ps1,sh}`) — fires on `PostToolUse`(matcher `*`) + `Stop`; posts only when `floor(utilization)` rises for the 5h or weekly window (~every 1%). Silent by default; @-mentions the user when a window crosses a milestone (`$Milestones`/`MILESTONES` = 25/50/80/90/100). Last-posted % persists in `~/.claude/discord_usage_pct_state.json` (first run baselines silently; a window drop / reset re-baselines silently). Webhook from `~/.claude/discord_usage_webhook.txt`. Reuses the ping feed's usage-fetch/OAuth/bar/reset-in logic verbatim — keep them in sync.
 
 `windows/` = PowerShell (built-in Windows PowerShell 5.1). `macos-linux/` = bash + `curl` + `jq`. **Any behavior change must be made in BOTH** the `.ps1` and the `.sh` for that feed.
 
